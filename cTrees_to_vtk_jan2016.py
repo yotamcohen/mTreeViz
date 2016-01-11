@@ -46,6 +46,10 @@ def vtk_write(ctrees_df,zeropoint_halo_ids,zeropoint_desc_ids,ofpath,params):
     npoints = ctrees_df.shape[0]
     nparams = len(params)
 
+
+    #===================================================================
+    # bare minimum for vtk file
+    #===================================================================
     # open output file
     ofile = open(ofpath,'w+')
     # write necessary header info
@@ -69,18 +73,33 @@ def vtk_write(ctrees_df,zeropoint_halo_ids,zeropoint_desc_ids,ofpath,params):
 
     # vtk cell types parameter (easiest to just leave at 3 for our purposes)
     ofile.write('CELL_TYPES %d\n' %npoints)
-    for i in range(npoints):
+    for irow in range(npoints):
         ofile.write('3\n')
     ofile.write('\n')
 
-    """
+    #===================================================================
     # from here down, we write the optional parameters to the vtk file
+    #===================================================================
     ofile.write('POINT_DATA %d\n' %npoints)
-    ofile.write('FIELD FieldData %d\n' %nfields)
-    for param in params:
-        # loop over optional parameters
-        pass
-    """
+    ofile.write('FIELD FieldData %d\n' %nparams)
+    
+    # virial mass
+    if 'mvir' in params:
+        # get log(M_vir)
+        logmvir = np.log10(ctrees_df['mvir'])
+        ofile.write('log(M_vir) 1 %d double\n' %npoints)
+        for irow in range(npoints):
+            ofile.write('%f \n' %logmvir[irow])
+
+    # velocity vectors
+    if 'velocity' in params:
+        ofile.write('velocity 3 %d double\n' %npoints)
+        for irow in range(npoints):
+            # get velocity components
+            row = ctrees_df.loc[irow]
+            vx,vy,vz = row['vx'],row['vy'],row['vz']
+            ofile.write('%f %f %f\n' %(vx,vy,vz))
+            
 
     ofile.close()
 
@@ -89,7 +108,7 @@ if __name__ == '__main__':
     df = read_csv('newtree.dat',header=None,comment='#',sep='\s*',engine='python')
     df.columns = colnames
     zp_hids,zp_dids = link_halos(df)
-    params = ['mvir']
+    params=['mvir','velocity']
     vtk_write(df,zp_hids,zp_dids,'test_vtk_jan2016.vtk',params)
 
 
