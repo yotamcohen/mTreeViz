@@ -1,5 +1,5 @@
 """ Consistent trees merger tree to vtk visualization file """
-
+from __future__ import division
 import numpy as np
 from pandas import *
 
@@ -46,7 +46,6 @@ def vtk_write(ctrees_df,zeropoint_halo_ids,zeropoint_desc_ids,ofpath,params):
     npoints = ctrees_df.shape[0]
     nparams = len(params)
 
-
     #===================================================================
     # bare minimum for vtk file
     #===================================================================
@@ -83,6 +82,14 @@ def vtk_write(ctrees_df,zeropoint_halo_ids,zeropoint_desc_ids,ofpath,params):
     ofile.write('POINT_DATA %d\n' %npoints)
     ofile.write('FIELD FieldData %d\n' %nparams)
     
+    # redshift
+    if 'redshift' in params:
+        # get redshift from scale factor using the familiar formula
+        z = (1/ctrees_df['scale']) - 1
+        ofile.write('redshift 1 %d double\n' %npoints)
+        for irow in range(npoints):
+            ofile.write('%f\n' %z[irow])
+    
     # virial mass
     if 'mvir' in params:
         # get log(M_vir)
@@ -91,6 +98,40 @@ def vtk_write(ctrees_df,zeropoint_halo_ids,zeropoint_desc_ids,ofpath,params):
         for irow in range(npoints):
             ofile.write('%f \n' %logmvir[irow])
 
+    # virial radius
+    if 'rvir' in params:
+        # get log(R_vir)
+        logrvir = np.log10(ctrees_df['rvir'])
+        ofile.write('log(R_vir) 1 %d double\n' %npoints)
+        for irow in range(npoints):
+            ofile.write('%f \n' %logrvir[irow])
+
+    # velocity dispersion
+    if 'vrms' in params:
+        ofile.write('V_rms 1 %d double\n' %npoints)
+        for irow in range(npoints):
+            ofile.write('%f\n' %ctrees_df.loc[irow]['vrms'])
+
+    # spin parameter
+    if 'Spin' in params:
+        # get log(Spin)
+        logspin = np.log10(ctrees_df['Spin'])
+        ofile.write('log(spin) 1 %d double\n' %npoints)
+        for irow in range(npoints):
+            ofile.write('%f\n' %logspin[irow])
+    
+    # most massive progenitor?
+    if 'mmp?' in params:
+        ofile.write('MMP? 1 %d int\n' %npoints)
+        for irow in range(npoints):
+            ofile.write('%i\n' %ctrees_df.loc[irow]['mmp?'])
+
+    # phantom?
+    if 'phantom' in params:
+        ofile.write('phantom? 1 %d int\n' %npoints)
+        for irow in range(npoints):
+            ofile.write('%i\n' %ctrees_df.loc[irow]['phantom'])
+    
     # velocity vectors
     if 'velocity' in params:
         ofile.write('velocity 3 %d double\n' %npoints)
@@ -99,7 +140,25 @@ def vtk_write(ctrees_df,zeropoint_halo_ids,zeropoint_desc_ids,ofpath,params):
             row = ctrees_df.loc[irow]
             vx,vy,vz = row['vx'],row['vy'],row['vz']
             ofile.write('%f %f %f\n' %(vx,vy,vz))
-            
+    
+    # angular momentum
+    if 'angular_momentum' in params:
+        ofile.write('angular_momentum 3 %d double\n' %npoints)
+        for irow in range(npoints):
+            # get ang_mom components
+            row = ctrees_df.loc[irow]
+            jx,jy,jz = row['Jx'],row['Jy'],row['Jz']
+            ofile.write('%f %f %f\n' %(jx,jy,jz))
+    
+    # ellipsoid axes
+    if 'ellipsoid_shape' in params:
+        ofile.write('ellipsoid_axes 3 %d double\n' %npoints)
+        for irow in range(npoints):
+            # get geometric components
+            row = ctrees_df.loc[irow]
+            Ax,Ay,Az = row['A[x]'],row['A[y]'],row['A[z]']
+            ofile.write('%f %f %f\n' %(Ax,Ay,Az))
+
 
     ofile.close()
 
@@ -108,7 +167,8 @@ if __name__ == '__main__':
     df = read_csv('newtree.dat',header=None,comment='#',sep='\s*',engine='python')
     df.columns = colnames
     zp_hids,zp_dids = link_halos(df)
-    params=['mvir','velocity']
+    params=['mvir','velocity','redshift','rvir','angular_momentum',
+            'vrms','mmp?','ellipsoid_shape','phantom','Spin']
     vtk_write(df,zp_hids,zp_dids,'test_vtk_jan2016.vtk',params)
 
 
